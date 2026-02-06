@@ -102,7 +102,7 @@ macro(add_plugin_test plugin_name test_files)
 endmacro()
 
 # PLUGIN_SCREENCAPTURE
-set (SCREENCAPTURE_INC ${CMAKE_SOURCE_DIR}/../../plugin ${CMAKE_SOURCE_DIR}/../../helpers)
+set (SCREENCAPTURE_INC ../../plugin ../../helpers)
 set (SCREENCAPTURE_LIBS ${NAMESPACE}ScreenCapture ${NAMESPACE}ScreenCaptureImplementation)
 add_plugin_test_ex(PLUGIN_SCREENCAPTURE tests/test_ScreenCapture.cpp "${SCREENCAPTURE_INC}" "${SCREENCAPTURE_LIBS}")
 
