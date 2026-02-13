@@ -126,18 +126,18 @@ jobs:
           ref: develop
           token: ${{ secrets.RDKCM_RDKE }}
 
-      - name: Checkout entservices-mediaanddrm
+      - name: Checkout entservices-screencapture
         if: ${{ inputs.caller_source == 'local' }}
         uses: actions/checkout@v3
         with:
-          path: entservices-mediaanddrm
+          path: entservices-screencapture
 
-      - name: Checkout entservices-mediaanddrm-testframework
+      - name: Checkout entservices-screencapture-testframework
         if: ${{ inputs.caller_source == 'testframework' }}
         uses: actions/checkout@v3
         with:
-          repository: rdkcentral/entservices-mediaanddrm
-          path: entservices-mediaanddrm
+          repository: rdkcentral/entservices-screencapture
+          path: entservices-screencapture
           ref: develop
 
       - name: Checkout googletest
@@ -346,7 +346,7 @@ jobs:
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/ccec/drivers
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/network
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests
-          -I $GITHUB_WORKSPACE/entservices-mediaanddrm/helpers
+          -I $GITHUB_WORKSPACE/entservices-screencapture/helpers
           -I $GITHUB_WORKSPACE/Thunder/Source
           -I $GITHUB_WORKSPACE/Thunder/Source/core
           -I $GITHUB_WORKSPACE/install/usr/include
@@ -383,11 +383,11 @@ jobs:
           &&
           cmake --install build/mocks
 
-      - name: Build entservices-mediaanddrm
+      - name: Build entservices-screencapture
         run: >
           cmake -G Ninja
-          -S "$GITHUB_WORKSPACE/entservices-mediaanddrm"
-          -B build/entservices-mediaanddrm
+          -S "$GITHUB_WORKSPACE/entservices-screencapture"
+          -B build/entservices-screencapture
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
           -DCMAKE_CXX_FLAGS="
@@ -460,9 +460,9 @@ jobs:
           -DPLUGIN_LINEARPLAYBACKCONTROL=ON
           -DPLUGIN_UNIFIEDCASMANAGEMENT=ON
           &&
-          cmake --build build/entservices-mediaanddrm -j8
+          cmake --build build/entservices-screencapture -j8
           &&
-          cmake --install build/entservices-mediaanddrm
+          cmake --install build/entservices-screencapture
 
       - name: Build entservices-testframework
         run: >
@@ -487,7 +487,7 @@ jobs:
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/iarmmgrs-hal
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/ccec/drivers
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/network
-          -I $GITHUB_WORKSPACE/entservices-mediaanddrm/helpers
+          -I $GITHUB_WORKSPACE/entservices-screencapture/helpers
           -I $GITHUB_WORKSPACE/entservices-testframework/Tests
           -I $GITHUB_WORKSPACE/Thunder/Source
           -I $GITHUB_WORKSPACE/Thunder/Source/core
@@ -664,12 +664,12 @@ jobs:
           &&
           lcov -c
           -o coverage.info
-          -d build/entservices-mediaanddrm
+          -d build/entservices-screencapture
           &&
           lcov
           -r coverage.info
           '/usr/include/*'
-          '*/build/entservices-mediaanddrm/_deps/*'
+          '*/build/entservices-screencapture/_deps/*'
           '*/install/usr/include/*'
           '*/Tests/headers/*'
           '*/Tests/mocks/*'
@@ -679,14 +679,14 @@ jobs:
           &&
           genhtml
           -o coverage
-          -t "entservices-mediaanddrm coverage"
+          -t "entservices-screencapture coverage"
           filtered_coverage.info
 
       - name: Upload artifacts
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-L1-mediaanddrm
+          name: artifacts-L1-screencapture
           path: |
             coverage/
             valgrind_log
