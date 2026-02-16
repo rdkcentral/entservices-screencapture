@@ -120,6 +120,7 @@ namespace WPEFramework
         uint32_t ScreenCaptureImplementation::Configure(PluginHost::IShell *shell)
         {
             LOGINFO("Configuring ScreenCaptureImplementation");
+            printf("Test coverity flow: %s\n");
             uint32_t result = Core::ERROR_NONE;
             ASSERT(shell != nullptr);
             mShell = shell;
