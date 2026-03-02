@@ -72,7 +72,7 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 	DRMContext *context;
 	bool ret = true;
 	drmModeFB *fb = nullptr;
-    drmModePlane *plane = nullptr;
+	drmModePlane *plane = nullptr;
 
 	do {
 		if(!handle || !handle->context) {
@@ -117,8 +117,8 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 			cout << "[SCREENCAP] try get primary buffer again" << endl;
 			kms_get_plane(context->fd, context->kms);
 
-            // Free previous plane before reassigning
-            drmModeFreePlane(plane);
+			// Free previous plane before reassigning
+			drmModeFreePlane(plane);
 			plane = drmModeGetPlane(context->fd, context->kms->primary_plane_id );
 			if(!plane) {
 				cout << "[SCREENCAP] fail to drmModeGetPlane" <<  endl;
@@ -177,8 +177,8 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 		handle->dmabuf_fd = drm_prime.fd;
 	} while(false);
 
-    if(plane)
-        drmModeFreePlane(plane);
+	if(plane)
+		drmModeFreePlane(plane);
 	
 	if(fb)
 		drmModeFreeFB(fb);
