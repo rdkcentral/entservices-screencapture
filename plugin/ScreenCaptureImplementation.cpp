@@ -442,12 +442,12 @@ namespace WPEFramework
                 std::string error_str;
                 std::string local_url;
                 std::string local_callGUID;
-                
+
                 {
                     std::lock_guard<std::mutex> guard(m_callMutex);
                     local_url = url;
                     local_callGUID = callGUID;
-                }		
+                }
 
                 LOGWARN("uploading %u of png data to '%s'", (uint32_t)png_data.size(), local_url.c_str());
 
