@@ -42,6 +42,7 @@ void kms_setup_encoder( int fd, kms_ctx *kms )
             if( kms->encoder->possible_crtcs & ( 1 << j ) ) {
                 kms->encoder_id = kms->encoder->encoder_id;
                 kms->crtc_id = kms->res->crtcs[j];
+                kms->encoder->crtc_id = kms->crtc_id;
                 return;
             }
         }
