@@ -72,6 +72,7 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 	DRMContext *context;
 	bool ret = true;
 	drmModeFB *fb = nullptr;
+	drmModePlane *plane = nullptr;
 
 	do {
 		if(!handle || !handle->context) {
@@ -83,7 +84,6 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 
 		// open drm device to get screen information
 		int retryCount = 0;
-		drmModePlane *plane = nullptr;
 
 		context->fd = open(DEFAULT_DEVICE, O_RDWR);
 		if(!context->fd) {
@@ -116,6 +116,9 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 			// try again
 			cout << "[SCREENCAP] try get primary buffer again" << endl;
 			kms_get_plane(context->fd, context->kms);
+
+			// Free previous plane before reassigning
+			drmModeFreePlane(plane);
 			plane = drmModeGetPlane(context->fd, context->kms->primary_plane_id );
 			if(!plane) {
 				cout << "[SCREENCAP] fail to drmModeGetPlane" <<  endl;
@@ -131,6 +134,11 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 		}
 		if(retryCount > 2) {
 			cout << "[SCREENCAP] fail to drmModeGetFB" << endl;
+			ret = false;
+			break;
+		}
+		if (!fb) {
+			cout << "[SCREENCAP] fb is NULL after retries" << endl;
 			ret = false;
 			break;
 		}
@@ -169,6 +177,9 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 		handle->dmabuf_fd = drm_prime.fd;
 	} while(false);
 
+	if(plane)
+		drmModeFreePlane(plane);
+	
 	if(fb)
 		drmModeFreeFB(fb);
 
