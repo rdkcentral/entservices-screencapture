@@ -37,6 +37,7 @@ void kms_setup_encoder( int fd, kms_ctx *kms )
             return;
         }
 
+
         for( int j = 0; j < kms->res->count_crtcs; j++ ) {
 
             if( kms->encoder->possible_crtcs & ( 1 << j ) ) {
@@ -49,8 +50,9 @@ void kms_setup_encoder( int fd, kms_ctx *kms )
             }
         }
     }
-    exit:
-        return;
+
+exit:
+    return;
 }
 
 void kms_setup_connector( int fd, kms_ctx *kms )
