@@ -40,17 +40,17 @@ void kms_setup_encoder( int fd, kms_ctx *kms )
         for( int j = 0; j < kms->res->count_crtcs; j++ ) {
 
             if( kms->encoder->possible_crtcs & ( 1 << j ) ) {
-                kms->encoder_id = kms->encoder->encoder_id;
-                kms->crtc_id = kms->res->crtcs[j];
-                kms->encoder->crtc_id = kms->crtc_id;
-                return;
+
+                drmModeFreeEncoder( kms->encoder );
+                kms->encoder = drmModeGetEncoder(fd, kms->res->encoders[j]);
+
+                kms->encoder->crtc_id = kms->crtc_id = j;
+                goto exit;
             }
         }
-
-        // No matching CRTC found for this encoder, free it and try next
-        drmModeFreeEncoder( kms->encoder );
-        kms->encoder = NULL;
     }
+    exit:
+        return;
 }
 
 void kms_setup_connector( int fd, kms_ctx *kms )
