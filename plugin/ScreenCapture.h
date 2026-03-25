@@ -61,13 +61,19 @@ namespace WPEFramework
 
                 void Activated(RPC::IRemoteConnection *) override
                 {
-                    LOGINFO("ScreenCapture Notification Activated");
+                    if(_parent._connectionId == connection->Id())
+                    {
+                        LOGINFO("ScreenCapture Notification Activated");
+                    }
                 }
 
                 void Deactivated(RPC::IRemoteConnection *connection) override
                 {
-                    LOGINFO("ScreenCapture Notification Deactivated");
-                    _parent.Deactivated(connection);
+                    if(_parent._connectionId == connection->Id())
+                    {
+                        LOGINFO("ScreenCapture Notification Deactivated");
+                        _parent.Deactivated(connection);
+                    }
                 }
 
                 void UploadComplete(const bool &status, const string &message, const string &call_guid) override
