@@ -61,10 +61,12 @@ namespace WPEFramework
 
                 void Activated(RPC::IRemoteConnection *) override
                 {
+                    LOGINFO("ScreenCapture Notification Activated");
                 }
 
                 void Deactivated(RPC::IRemoteConnection *connection) override
                 {
+                    LOGINFO("ScreenCapture Notification Deactivated");
                     _parent.Deactivated(connection);
                 }
 
