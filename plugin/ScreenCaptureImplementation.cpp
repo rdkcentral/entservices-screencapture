@@ -338,6 +338,47 @@ namespace WPEFramework
             return (r == 0);
         }
 
+        static size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata)
+        {
+            std::vector<unsigned char> *response = static_cast<std::vector<unsigned char> *>(userdata);
+            size_t totalSize = size * nmemb;
+            LOGINFO("Got %u bytes of data from VNC screenshot endpoint", totalSize);
+            response->insert(response->end(), ptr, ptr + totalSize);
+            return totalSize;
+        }
+
+        static bool getScreenContentVNC(std::vector<unsigned char> &png_out_data)
+        {
+            CURL *curlHandle = curl_easy_init();
+            if (!curlHandle)
+            {
+                LOGERR("could not init curl\n");
+                return false;
+            }
+
+            curl_easy_setopt(curlHandle, CURLOPT_URL, "http://127.0.0.1:5800/screenshot.png");
+            curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L);            
+            curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+
+            curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &png_out_data);
+
+            curl_easy_setopt(curlHandle, CURLOPT_TIMEOUT, 5L); // set timeout for the request
+            CURLcode res = curl_easy_perform(curlHandle);
+
+            if (res != CURLE_OK)
+            {
+                LOGERR("Failed to get screen content from VNC: %s", curl_easy_strerror(res));
+                curl_easy_cleanup(curlHandle);
+                return false;
+            }
+
+            curl_easy_cleanup(curlHandle);
+
+            LOGINFO("Got %d bytes of data from VNC endpoint", png_out_data.size());
+
+            return true;
+        }
+
 #ifdef USE_DRM_SCREENCAPTURE
         static bool getScreenContent(std::vector<unsigned char> &png_out_data)
         {
@@ -428,7 +469,12 @@ namespace WPEFramework
             std::vector<unsigned char> png_data;
             bool got_screenshot = false;
 
-            got_screenshot = getScreenContent(png_data);
+            got_screenshot = getScreenContentVNC(png_data);
+            if (!got_screenshot)
+            {
+                LOGWARN("Failed to get screen content from VNC, fallback to drm getter");
+                got_screenshot = getScreenContent(png_data);
+            }
 
             m_screenCapture->doUploadScreenCapture(png_data, got_screenshot);
 
