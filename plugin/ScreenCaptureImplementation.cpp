@@ -360,15 +360,21 @@ namespace WPEFramework
 
             png_out_data.clear();
 
-            curl_easy_setopt(curlHandle, CURLOPT_URL, VNC_SCREENSHOT_URL);
-            curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L);
-            curl_easy_setopt(curlHandle, CURLOPT_FAILONERROR, 1L);
-            curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+            CURLcode res;
 
-            curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &png_out_data);
+            if ((res = curl_easy_setopt(curlHandle, CURLOPT_URL, VNC_SCREENSHOT_URL)) != CURLE_OK ||
+                (res = curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L)) != CURLE_OK ||
+                (res = curl_easy_setopt(curlHandle, CURLOPT_FAILONERROR, 1L)) != CURLE_OK ||
+                (res = curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, curlWriteCallback)) != CURLE_OK ||
+                (res = curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &png_out_data)) != CURLE_OK ||
+                (res = curl_easy_setopt(curlHandle, CURLOPT_TIMEOUT, 5L)) != CURLE_OK)
+            {
+                LOGERR("Failed to set curl options: %s", curl_easy_strerror(res));
+                curl_easy_cleanup(curlHandle);
+                return false;
+            }
 
-            curl_easy_setopt(curlHandle, CURLOPT_TIMEOUT, 5L); // set timeout for the request
-            CURLcode res = curl_easy_perform(curlHandle);
+            res = curl_easy_perform(curlHandle);
 
             long http_code = 0;
             curl_easy_getinfo(curlHandle, CURLINFO_RESPONSE_CODE, &http_code);
