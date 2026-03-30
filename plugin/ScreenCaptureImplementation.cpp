@@ -37,6 +37,8 @@
 #define API_VERSION_NUMBER_MINOR 0
 #define API_VERSION_NUMBER_PATCH 0
 
+#define VNC_SCREENSHOT_URL "http://127.0.0.1:5800/screenshot.png"
+
 namespace WPEFramework
 {
     namespace Plugin
@@ -342,7 +344,6 @@ namespace WPEFramework
         {
             std::vector<unsigned char> *response = static_cast<std::vector<unsigned char> *>(userdata);
             size_t totalSize = size * nmemb;
-            LOGINFO("Got %u bytes of data from VNC screenshot endpoint", totalSize);
             response->insert(response->end(), ptr, ptr + totalSize);
             return totalSize;
         }
@@ -356,7 +357,7 @@ namespace WPEFramework
                 return false;
             }
 
-            curl_easy_setopt(curlHandle, CURLOPT_URL, "http://127.0.0.1:5800/screenshot.png");
+            curl_easy_setopt(curlHandle, CURLOPT_URL, VNC_SCREENSHOT_URL);
             curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L);            
             curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
 
