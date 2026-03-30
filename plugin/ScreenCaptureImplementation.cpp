@@ -25,12 +25,8 @@
 #include <png.h>
 #include <curl/curl.h>
 
-#ifdef HAS_SCREENCAPTURE_PLATFORM
-#include "screencaptureplatform.h"
-#elif USE_DRM_SCREENCAPTURE
+#ifdef USE_DRM_SCREENCAPTURE
 #include "Implementation/drm/drmsc.h"
-#else
-#error "Can't build without drm or platform getter !"
 #endif
 
 #define API_VERSION_NUMBER_MAJOR 1
@@ -53,6 +49,9 @@ namespace WPEFramework
             LOGINFO("Create ScreenCaptureImplementation Instance");
             ScreenCaptureImplementation::_instance = this;
             screenShotDispatcher = new WPEFramework::Core::TimerType<ScreenShotJob>(64 * 1024, "ScreenCaptureDispatcher");
+
+            curl_global_init(CURL_GLOBAL_ALL);
+
         }
 
         ScreenCaptureImplementation::~ScreenCaptureImplementation()
@@ -62,6 +61,8 @@ namespace WPEFramework
             ScreenCaptureImplementation::_instance = nullptr;
             mShell = nullptr;
             delete screenShotDispatcher;
+
+            curl_global_cleanup();
         }
 
         /**
@@ -357,8 +358,11 @@ namespace WPEFramework
                 return false;
             }
 
+            png_out_data.clear();
+
             curl_easy_setopt(curlHandle, CURLOPT_URL, VNC_SCREENSHOT_URL);
-            curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L);            
+            curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1L);
+            curl_easy_setopt(curlHandle, CURLOPT_FAILONERROR, 1L);
             curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
 
             curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &png_out_data);
@@ -366,7 +370,10 @@ namespace WPEFramework
             curl_easy_setopt(curlHandle, CURLOPT_TIMEOUT, 5L); // set timeout for the request
             CURLcode res = curl_easy_perform(curlHandle);
 
-            if (res != CURLE_OK)
+            long http_code = 0;
+            curl_easy_getinfo(curlHandle, CURLINFO_RESPONSE_CODE, &http_code);
+
+            if (res != CURLE_OK || http_code != 200)
             {
                 LOGERR("Failed to get screen content from VNC: %s", curl_easy_strerror(res));
                 curl_easy_cleanup(curlHandle);
@@ -375,7 +382,7 @@ namespace WPEFramework
 
             curl_easy_cleanup(curlHandle);
 
-            LOGINFO("Got %d bytes of data from VNC endpoint", png_out_data.size());
+            LOGINFO("Got %zu bytes of data from VNC endpoint", png_out_data.size());
 
             return true;
         }
@@ -473,8 +480,11 @@ namespace WPEFramework
             got_screenshot = getScreenContentVNC(png_data);
             if (!got_screenshot)
             {
-                LOGWARN("Failed to get screen content from VNC, fallback to drm getter");
+                LOGWARN("Failed to get screen content from VNC.");
+#ifdef USE_DRM_SCREENCAPTURE                
+                LOGWARN("Calling drm getter");
                 got_screenshot = getScreenContent(png_data);
+#endif                
             }
 
             m_screenCapture->doUploadScreenCapture(png_data, got_screenshot);
@@ -556,7 +566,6 @@ namespace WPEFramework
             LOGWARN("uploading png data of size %u to '%s'", (uint32_t)data.size(), url);
 
             // init curl
-            curl_global_init(CURL_GLOBAL_ALL);
             curl = curl_easy_init();
 
             if (!curl)
