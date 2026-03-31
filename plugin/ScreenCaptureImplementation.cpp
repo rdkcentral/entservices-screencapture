@@ -49,9 +49,6 @@ namespace WPEFramework
             LOGINFO("Create ScreenCaptureImplementation Instance");
             ScreenCaptureImplementation::_instance = this;
             screenShotDispatcher = new WPEFramework::Core::TimerType<ScreenShotJob>(64 * 1024, "ScreenCaptureDispatcher");
-
-            curl_global_init(CURL_GLOBAL_ALL);
-
         }
 
         ScreenCaptureImplementation::~ScreenCaptureImplementation()
@@ -61,8 +58,6 @@ namespace WPEFramework
             ScreenCaptureImplementation::_instance = nullptr;
             mShell = nullptr;
             delete screenShotDispatcher;
-
-            curl_global_cleanup();
         }
 
         /**
@@ -354,7 +349,7 @@ namespace WPEFramework
             CURL *curlHandle = curl_easy_init();
             if (!curlHandle)
             {
-                LOGERR("could not init curl\n");
+                LOGERR("could not init curl");
                 return false;
             }
 
@@ -381,7 +376,7 @@ namespace WPEFramework
 
             if (res != CURLE_OK || http_code != 200)
             {
-                LOGERR("Failed to get screen content from VNC: %s", curl_easy_strerror(res));
+                LOGERR("Failed to get screen content from VNC, http code: %ld, error: %s", http_code, curl_easy_strerror(res));
                 curl_easy_cleanup(curlHandle);
                 return false;
             }
@@ -486,7 +481,6 @@ namespace WPEFramework
             got_screenshot = getScreenContentVNC(png_data);
             if (!got_screenshot)
             {
-                LOGWARN("Failed to get screen content from VNC.");
 #ifdef USE_DRM_SCREENCAPTURE                
                 LOGWARN("Calling drm getter");
                 got_screenshot = getScreenContent(png_data);
