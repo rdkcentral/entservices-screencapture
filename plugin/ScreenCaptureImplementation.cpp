@@ -385,6 +385,12 @@ namespace WPEFramework
 
             LOGINFO("Got %zu bytes of data from VNC endpoint", png_out_data.size());
 
+            if (png_out_data.size() < 8 || png_sig_cmp(png_out_data.data(), 0, 8) != 0)
+            {
+                LOGERR("Data received from VNC is not a valid PNG");
+                return false;
+            }
+
             return true;
         }
 
