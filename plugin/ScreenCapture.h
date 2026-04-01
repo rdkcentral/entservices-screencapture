@@ -72,8 +72,8 @@ namespace WPEFramework
                     if(_parent._connectionId == connection->Id())
                     {
                         LOGINFO("ScreenCapture Notification Deactivated");
-                        _parent.Deactivated(connection);
                     }
+                    _parent.Deactivated(connection);
                 }
 
                 void UploadComplete(const bool &status, const string &message, const string &call_guid) override
