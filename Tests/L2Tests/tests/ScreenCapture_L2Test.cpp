@@ -271,6 +271,122 @@ TEST_F(ScreenCaptureTest, No_URL)
     EXPECT_EQ(Core::ERROR_GENERAL, status);
 }
 
+TEST_F(ScreenCaptureTest, UploadVNC_Success)
+{
+    uint32_t signalled = ScreenCapture_StateInvalid;
+    uint32_t status = Core::ERROR_GENERAL;
+    JsonObject params;
+    JsonObject result;
+
+    int vncSockfd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_TRUE(vncSockfd != -1);
+    sockaddr_in vncSockaddr;
+    vncSockaddr.sin_family = AF_INET;
+    vncSockaddr.sin_addr.s_addr = INADDR_ANY;
+    vncSockaddr.sin_port = htons(5800);
+    ASSERT_FALSE(bind(vncSockfd, (struct sockaddr*)&vncSockaddr, sizeof(vncSockaddr)) < 0);
+    ASSERT_FALSE(listen(vncSockfd, 10) < 0); 
+
+    std::thread vncThread = std::thread([&]() {
+        auto addrlen = sizeof(sockaddr);
+        const int connection = accept(vncSockfd, (struct sockaddr*)&vncSockaddr, (socklen_t*)&addrlen);
+        ASSERT_FALSE(connection < 0);
+        char buffer[2048] = { 0 };
+        ssize_t bytesRead = read(connection, buffer, 2048);
+        ASSERT_TRUE(bytesRead > 0);
+
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nContent-Type: image/png\r\n\r\n";
+        ssize_t bytesSent = send(connection, response.c_str(), response.size(), 0);
+
+        close(connection);
+        ASSERT_TRUE(bytesSent > 0);
+    });
+
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        TEST_LOG("Failed to create socket");
+        EXPECT_TRUE(false) << "Socket creation failed";
+        return;
+    }
+    sockaddr_in sockaddr;
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_addr.s_addr = INADDR_ANY;
+    sockaddr.sin_port = htons(11110);
+    if (bind(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
+        TEST_LOG("Failed to bind socket");
+        close(sockfd);
+        EXPECT_TRUE(false) << "Socket bind failed";
+        return;
+    }
+    if (listen(sockfd, 10) < 0) {
+        TEST_LOG("Failed to listen on socket");
+        close(sockfd);
+        EXPECT_TRUE(false) << "Socket listen failed";
+        return;
+    }
+    fd_set set;
+    struct timeval timeout;
+    
+    // Initialize the set
+    FD_ZERO(&set);
+    FD_SET(sockfd, &set);
+
+    // Set the timeout to 5 seconds
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+
+    std::thread thread = std::thread([&]()
+    {
+         int rv = select(sockfd + 1, &set, NULL, NULL, &timeout);
+         if (rv == 0) {
+             // Timeout occurred, no connection was made
+             TEST_LOG("Timeout occurred, closing socket.");
+         }
+         else {
+             auto addrlen = sizeof(sockaddr);
+             const int connection = accept(sockfd, (struct sockaddr*)&sockaddr, (socklen_t*)&addrlen);
+             if (connection < 0) {
+                 TEST_LOG("Failed to accept connection");
+                 return;
+             }
+             char buffer[2048] = { 0 };
+             if (read(connection, buffer, 2048) <= 0) {
+                 TEST_LOG("Failed to read from connection");
+                 close(connection);
+                 return;
+             }
+
+             std::string reqHeader(buffer);
+             EXPECT_TRUE(std::string::npos != reqHeader.find("Content-Type: image/png"));
+
+             std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+             send(connection, response.c_str(), response.size(), 0);
+
+             close(connection);
+    } });
+
+    params["url"] = "http://127.0.0.1:11110";
+    params["callGUID"] = "12345";
+    status = InvokeServiceMethod("org.rdk.ScreenCapture", "uploadScreenCapture", params, result);
+    EXPECT_EQ(Core::ERROR_NONE, status);
+    TEST_LOG("After InvokeServiceMethod ***\n");
+    signalled = notify.WaitForRequestStatus(JSON_TIMEOUT, ScreenCapture_UploadComplete);
+    EXPECT_TRUE(signalled & ScreenCapture_UploadComplete);
+    
+    // Cleanup
+   if (vncThread.joinable()) {
+        vncThread.join();
+    }
+    if (thread.joinable()) {
+        thread.join();
+    }
+    close(vncSockfd);
+    close(sockfd);
+    TEST_LOG("End of test case ***\n");
+}
+
+
 TEST_F(ScreenCaptureTest, Upload_Success)
 {
     uint32_t signalled = ScreenCapture_StateInvalid;
