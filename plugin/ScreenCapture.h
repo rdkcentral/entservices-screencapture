@@ -59,12 +59,20 @@ namespace WPEFramework
                 INTERFACE_ENTRY(RPC::IRemoteConnection::INotification)
                 END_INTERFACE_MAP
 
-                void Activated(RPC::IRemoteConnection *) override
+                void Activated(RPC::IRemoteConnection *connection) override
                 {
+                    if(_parent._connectionId == connection->Id())
+                    {
+                        LOGINFO("ScreenCapture Notification Activated");
+                    }
                 }
 
                 void Deactivated(RPC::IRemoteConnection *connection) override
                 {
+                    if(_parent._connectionId == connection->Id())
+                    {
+                        LOGINFO("ScreenCapture Notification Deactivated");
+                    }
                     _parent.Deactivated(connection);
                 }
 
