@@ -17,7 +17,6 @@
  * limitations under the License.
  **/
 
-
 #include "ScreenCaptureImplementation.h"
 
 #include "UtilsJsonRpc.h"
