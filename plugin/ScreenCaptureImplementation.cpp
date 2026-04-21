@@ -243,7 +243,7 @@ namespace WPEFramework
             result.success = true;
             return Core::ERROR_NONE;
         }
-
+#ifdef USE_DRM_SCREENCAPTURE
         static void PngWriteCallback(png_structp png_ptr, png_bytep data, png_size_t length)
         {
             std::vector<unsigned char> *p = (std::vector<unsigned char> *)png_get_io_ptr(png_ptr);
@@ -335,7 +335,7 @@ namespace WPEFramework
 
             return (r == 0);
         }
-
+#endif
         static size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata)
         {
             std::vector<unsigned char> *response = static_cast<std::vector<unsigned char> *>(userdata);
