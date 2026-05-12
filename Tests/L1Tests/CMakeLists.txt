@@ -32,7 +32,7 @@ set (TEST_LIB
     ${NAMESPACE}Plugins::${NAMESPACE}Plugins
 )
 
-set (TEST_INC ../../helpers)
+set (TEST_INC)
 
 #########################################################################################
 # add_plugin_test_ex: Macro to add plugin tests, it will append to TEST_SRC, TEST_INC,
@@ -102,7 +102,7 @@ macro(add_plugin_test plugin_name test_files)
 endmacro()
 
 # PLUGIN_SCREENCAPTURE
-set (SCREENCAPTURE_INC ../../plugin ../../helpers)
+set (SCREENCAPTURE_INC ../../plugin ${CMAKE_SOURCE_DIR}/../entservices-helpers/helpers)
 set (SCREENCAPTURE_LIBS ${NAMESPACE}ScreenCapture ${NAMESPACE}ScreenCaptureImplementation)
 add_plugin_test_ex(PLUGIN_SCREENCAPTURE tests/test_ScreenCapture.cpp "${SCREENCAPTURE_INC}" "${SCREENCAPTURE_LIBS}")
 
