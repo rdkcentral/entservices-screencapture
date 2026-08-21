@@ -27,6 +27,7 @@
 #include <sys/ioctl.h>
 #include "kms.h"
 #include "drmsc.h"
+#include <limits.h>
 
 #ifndef DEFAULT_DEVICE
 #define DEFAULT_DEVICE "/dev/dri/card0"
@@ -82,12 +83,9 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 		}
 		context = (DRMContext*) handle->context;
 
-		// open drm device to get screen information
-		int retryCount = 0;
-
 		context->fd = open(DEFAULT_DEVICE, O_RDWR);
-		if(!context->fd) {
-			cout << "[SCREENCAP] fail to open " <<  DEFAULT_DEVICE << endl;
+		if(context->fd < 0) {
+			cout << "[SCREENCAP] fail to open " << DEFAULT_DEVICE << endl;
 			ret = false;
 			break;
 		}
@@ -101,60 +99,49 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 		cout << "Choose mode: " << context->kms->current_info.hdisplay << "x" <<  context->kms->current_info.vdisplay
 			<< "@" << context->kms->current_info.vrefresh << endl;
 
-		/* Get primary plane */
-		kms_get_plane(context->fd, context->kms);
-		plane = drmModeGetPlane(context->fd, context->kms->primary_plane_id );
-		if(!plane) {
-			cout << "[SCREENCAP] fail to drmModeGetPlane" <<  endl;
-			ret = false;
-			break;
-		}
-
-		// get primary buffer
-		fb = drmModeGetFB(context->fd, plane->fb_id);
-		while(!fb) {
-			// try again
-			cout << "[SCREENCAP] try get primary buffer again" << endl;
+		 /* Select the highest-zpos active plane and retry if its framebuffer is
+          * temporarily unavailable or becomes stale during buffer flipping. */
+		const int maxAttempts = 15;
+		for (int attempt = 0; attempt < maxAttempts; ++attempt) {
 			kms_get_plane(context->fd, context->kms);
+			uint32_t plane_id = (context->kms->topmost_plane_id != (uint32_t)INT_MAX)
+				? context->kms->topmost_plane_id : context->kms->primary_plane_id;
 
-			// Free previous plane before reassigning
-			drmModeFreePlane(plane);
-			plane = drmModeGetPlane(context->fd, context->kms->primary_plane_id );
-			if(!plane) {
-				cout << "[SCREENCAP] fail to drmModeGetPlane" <<  endl;
-				ret = false;
-				break;
+			if (plane_id != (uint32_t)INT_MAX) {
+				plane = drmModeGetPlane(context->fd, plane_id);
+				if (plane && plane->fb_id) {
+					fb = drmModeGetFB(context->fd, plane->fb_id);
+					if (fb)
+						break;
+				}
 			}
 
-			fb = drmModeGetFB(context->fd, plane->fb_id);
-			if(retryCount > 2) {
-				break;
+			if (plane) {
+				drmModeFreePlane(plane);
+				plane = nullptr;
 			}
-			retryCount++;
+			usleep(10000);
 		}
-		if(retryCount > 2) {
-			cout << "[SCREENCAP] fail to drmModeGetFB" << endl;
+
+		if(!plane) {
+			cout << "[SCREENCAP] fail to select an active plane after retries" << endl;
 			ret = false;
 			break;
 		}
-		if (!fb) {
-			cout << "[SCREENCAP] fb is NULL after retries" << endl;
+
+		if(!fb) {
+			cout << "[SCREENCAP] fail to drmModeGetFB after retries" << endl;
 			ret = false;
 			break;
 		}
 
-        if (fb->width * 4 == fb->pitch && 0 == fb->bpp)
-            fb->bpp = 32;
-        
+		if (fb->width * 4 == fb->pitch && 0 == fb->bpp)
+			fb->bpp = 32;
+
 		handle->width = fb->width;
 		handle->height = fb->height;
 		handle->bpp = fb->bpp;
 		handle->pitch = fb->pitch;
-
-		cout << "[SCREENCAP] width : " << fb->width << endl;
-		cout << "[SCREENCAP] height : " << fb->height << endl;
-		cout << "[SCREENCAP] bpp : " << fb->bpp << endl;
-		cout << "[SCREENCAP] pitch : " << fb->pitch << endl;
 
 		if (32 != handle->bpp) {
 			cout << "[SCREENCAP] Unsupported bits per pixel: " << handle->bpp << endl;
@@ -162,19 +149,22 @@ bool DRMScreenCapture_GetScreenInfo(DRMScreenCapture* handle) {
 			break;
 		}
 
-                struct drm_prime_handle drm_prime;
-                int drmRet = 0;
-
+		struct drm_prime_handle drm_prime = {};
 		drm_prime.handle = fb->handle;
 		drm_prime.flags = 0;
-		drmRet = ioctl(context->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &drm_prime);
-		
+		int drmRet = ioctl(context->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &drm_prime);
+
 		if(drmRet) {
 			cout << "[SCREENCAP] drmIoctl(DRM_IOCTL_PRIME_HANDLE_TO_FD) fail, ret=" << drmRet << endl;
 			ret = false;
 			break;
 		}
 		handle->dmabuf_fd = drm_prime.fd;
+
+		cout << "[SCREENCAP] width : " << fb->width << endl;
+		cout << "[SCREENCAP] height : " << fb->height << endl;
+		cout << "[SCREENCAP] bpp : " << fb->bpp << endl;
+		cout << "[SCREENCAP] pitch : " << fb->pitch << endl;
 	} while(false);
 
 	if(plane)
