@@ -43,6 +43,7 @@ typedef struct _kms_ctx {
     uint32_t encoder_id;
     uint32_t primary_plane_id;
     uint32_t overlay_plane_id;
+    uint32_t topmost_plane_id;  /**< plane with the highest zpos on the active CRTC */
 
     /* atomic properties */
     uint32_t active_property;
