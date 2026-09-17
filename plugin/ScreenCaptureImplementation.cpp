@@ -25,6 +25,7 @@
 #include <png.h>
 #include <curl/curl.h>
 #include <regex>
+#include <algorithm>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
