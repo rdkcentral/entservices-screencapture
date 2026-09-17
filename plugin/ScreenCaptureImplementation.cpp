@@ -27,6 +27,7 @@
 #include <regex>
 #include <algorithm>
 #include <cctype>
+#include <locale>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
@@ -188,7 +189,7 @@ namespace WPEFramework
 
             // Interpret boolean value case-insensitively
             std::string enableNorm = enableStr.value;
-            std::transform(enableNorm.begin(), enableNorm.end(), enableNorm.begin(), [](unsigned char c){ return std::tolower(c); });
+            std::transform(enableNorm.begin(), enableNorm.end(), enableNorm.begin(), [](unsigned char c){ return std::tolower(c, std::locale::classic()); });
             bool isEnabled = (enableNorm == "true");
 
             if (!isEnabled)
@@ -315,7 +316,7 @@ namespace WPEFramework
             curl_free(host);
 
             // Convert to lowercase for comparison
-            std::transform(hostStr.begin(), hostStr.end(), hostStr.begin(), [](unsigned char c){ return std::tolower(c); });
+            std::transform(hostStr.begin(), hostStr.end(), hostStr.begin(), [](unsigned char c){ return std::tolower(c, std::locale::classic()); });
 
             // Reject IPv6 zone identifiers (e.g., fe80::1%25lo)
             if (hostStr.find('%') != std::string::npos)
@@ -440,7 +441,7 @@ namespace WPEFramework
                 bool isNumeric = true;
                 for (char c : hostStr)
                 {
-                    if (!::isdigit(c) && c != '.' && c != '-' && c != 'x' && c != 'X')
+                    if (!std::isdigit(static_cast<unsigned char>(c)) && c != '.' && c != '-' && c != 'x' && c != 'X')
                     {
                         isNumeric = false;
                         break;
