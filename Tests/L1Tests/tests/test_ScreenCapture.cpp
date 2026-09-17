@@ -424,7 +424,7 @@ TEST_F(ScreenCaptureDRMTest, SendScreenshot)
     ON_CALL(*p_rfcApiImplMock, getRFCParameter(::testing::_, ::testing::StrEq("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.URL"), ::testing::_))
         .WillByDefault(::testing::Invoke(
             [](const char*, const char*, RFC_ParamData_t* param) {
-                strcpy(param->value, "http://127.0.0.1:11112");
+                strcpy(param->value, "http://example.com:11112");
                 return WDMP_SUCCESS;
             }));
 
@@ -520,4 +520,24 @@ TEST_F(ScreenCaptureDRMTest, SendScreenshot_EmptyURL)
             }));
 
     EXPECT_EQ(Core::ERROR_GENERAL, handler.Invoke(connection, _T("sendScreenshot"), _T("{\"callGUID\":\"test-guid-empty-url\"}"), response));
+}
+
+TEST_F(ScreenCaptureDRMTest, SendScreenshot_InvalidURL)
+{
+    // Mock successful Enable but invalid URL (localhost)
+    EXPECT_CALL(*p_rfcApiImplMock, getRFCParameter(::testing::_, ::testing::StrEq("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.Enable"), ::testing::_))
+        .WillOnce(::testing::Invoke(
+            [](const char*, const char*, RFC_ParamData_t* param) {
+                strcpy(param->value, "true");
+                return WDMP_SUCCESS;
+            }));
+
+    EXPECT_CALL(*p_rfcApiImplMock, getRFCParameter(::testing::_, ::testing::StrEq("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.URL"), ::testing::_))
+        .WillOnce(::testing::Invoke(
+            [](const char*, const char*, RFC_ParamData_t* param) {
+                strcpy(param->value, "http://127.0.0.1:8080");
+                return WDMP_SUCCESS;
+            }));
+
+    EXPECT_EQ(Core::ERROR_GENERAL, handler.Invoke(connection, _T("sendScreenshot"), _T("{\"callGUID\":\"test-guid-invalid-url\"}"), response));
 }

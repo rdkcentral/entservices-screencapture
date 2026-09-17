@@ -214,6 +214,14 @@ namespace WPEFramework
                 return Core::ERROR_GENERAL;
             }
 
+            // Validate URL before accepting it
+            if (!isValidUploadUrl(url))
+            {
+                LOGERR("RFC URL validation failed for '%s'", kUrlKey);
+                result.success = false;
+                return Core::ERROR_GENERAL;
+            }
+
             this->url = std::move(url);
             this->callGUID = callGUID;
                         
