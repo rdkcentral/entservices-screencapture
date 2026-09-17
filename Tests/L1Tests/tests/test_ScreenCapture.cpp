@@ -200,7 +200,7 @@ TEST_F(ScreenCaptureDRMTest, Upload)
     ASSERT_TRUE(sockfd != -1);
     sockaddr_in sockaddr;
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_addr.s_addr = INADDR_ANY;
+    sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     sockaddr.sin_port = htons(11111);
     ASSERT_FALSE(bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0);
     ASSERT_FALSE(listen(sockfd, 10) < 0);
@@ -225,7 +225,7 @@ TEST_F(ScreenCaptureDRMTest, Upload)
 
     EVENT_SUBSCRIBE(0, _T("uploadComplete"), _T("org.rdk.ScreenCapture"), message);
 
-    EXPECT_EQ(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://127.0.0.1:11111\"}"), response));
+    EXPECT_EQ(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://example.com:11111\"}"), response));
     EXPECT_EQ(response, _T("{\"success\":true}"));
 
     EXPECT_EQ(Core::ERROR_NONE, uploadComplete.Lock());
@@ -235,6 +235,83 @@ TEST_F(ScreenCaptureDRMTest, Upload)
     free(buffer);
     close(sockfd);
     thread.join();
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsInvalidUrlSchemes)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"file:///etc/passwd\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLocalhost)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://127.0.0.1:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLocalhostVariant)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://localhost:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsPrivateNetwork)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://192.168.1.1:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsUserinfoBypass)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://attacker@127.0.0.1:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsIPv6Localhost)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://[::1]:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLinkLocal)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://169.254.169.254:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsTrailingDotLoopback)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://127.0.0.1.:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsIPv6ZoneIdentifier)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://[fe80::1%25lo]:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsNumericHostname)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://2130706433:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsUnspecifiedAddress)
+{
+    string response;
+    EXPECT_NE(Core::ERROR_NONE, handler.Invoke(connection, _T("uploadScreenCapture"), _T("{\"url\":\"http://0.0.0.0:8080\"}"), response));
+    EXPECT_NE(response, _T("{\"success\":true}"));
 }
 
 TEST_F(ScreenCaptureDRMTest, SendScreenshot)
