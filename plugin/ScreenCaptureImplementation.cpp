@@ -27,7 +27,6 @@
 #include <regex>
 #include <algorithm>
 #include <cctype>
-#include <locale>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
@@ -189,7 +188,9 @@ namespace WPEFramework
 
             // Interpret boolean value case-insensitively
             std::string enableNorm = enableStr.value;
-            std::transform(enableNorm.begin(), enableNorm.end(), enableNorm.begin(), [](unsigned char c){ return std::tolower(c, std::locale::classic()); });
+            for (char& c : enableNorm) {
+                c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+            }
             bool isEnabled = (enableNorm == "true");
 
             if (!isEnabled)
@@ -316,7 +317,9 @@ namespace WPEFramework
             curl_free(host);
 
             // Convert to lowercase for comparison
-            std::transform(hostStr.begin(), hostStr.end(), hostStr.begin(), [](unsigned char c){ return std::tolower(c, std::locale::classic()); });
+            for (char& c : hostStr) {
+                c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+            }
 
             // Reject IPv6 zone identifiers (e.g., fe80::1%25lo)
             if (hostStr.find('%') != std::string::npos)
