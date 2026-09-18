@@ -333,6 +333,12 @@ namespace WPEFramework
             std::string hostStr(host);
             curl_free(host);
 
+            // Strip IPv6 brackets: curl_url_get returns "[::1]" for IPv6 hosts
+            if (hostStr.size() >= 2 && hostStr.front() == '[' && hostStr.back() == ']')
+            {
+                hostStr = hostStr.substr(1, hostStr.size() - 2);
+            }
+
             // Convert to lowercase for comparison
             for (char& c : hostStr) {
                 c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
