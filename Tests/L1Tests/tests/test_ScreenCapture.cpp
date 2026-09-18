@@ -237,6 +237,78 @@ TEST_F(ScreenCaptureDRMTest, Upload)
     thread.join();
 }
 
+// SSRF validation tests: call validateUrlSafety() directly (static method)
+// to test the validation logic itself, independent of the L1 test bypass.
+TEST_F(ScreenCaptureTest, UploadRejectsInvalidUrlSchemes)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("file:///etc/passwd"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLocalhost)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://127.0.0.1:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLocalhostVariant)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://localhost:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsPrivateNetwork)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://192.168.1.1:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsUserinfoBypass)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://attacker@127.0.0.1:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsIPv6Localhost)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://[::1]:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsLinkLocal)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://169.254.169.254:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsTrailingDotLoopback)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://127.0.0.1.:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsIPv6ZoneIdentifier)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://[fe80::1%25lo]:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsNumericHostname)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://2130706433:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsUnspecifiedAddress)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://0.0.0.0:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsHexIpBypass)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://0x7f000001:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadRejectsOctalIpBypass)
+{
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://0177.0.0.1:8080"));
+}
+
+TEST_F(ScreenCaptureTest, UploadAcceptsValidPublicUrl)
+{
+    EXPECT_TRUE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("https://upload.example.com/screenshots"));
+}
+
 TEST_F(ScreenCaptureDRMTest, SendScreenshot)
 {   
     DRMScreenCapture drmHandle = {0, 1280, 720, 5120, 32};
@@ -443,4 +515,12 @@ TEST_F(ScreenCaptureDRMTest, SendScreenshot_EmptyURL)
             }));
 
     EXPECT_EQ(Core::ERROR_GENERAL, handler.Invoke(connection, _T("sendScreenshot"), _T("{\"callGUID\":\"test-guid-empty-url\"}"), response));
+}
+
+TEST_F(ScreenCaptureDRMTest, SendScreenshot_InvalidURL)
+{
+    // Test that SSRF validation rejects localhost URLs
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://127.0.0.1:8080"));
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://localhost:8080"));
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("http://10.0.0.1:8080"));
 }

@@ -24,6 +24,23 @@
 
 #include <png.h>
 #include <curl/curl.h>
+#include <algorithm>
+#include <cctype>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+// IN6_IS_ADDR_UNIQUE_LOCAL is not defined on all platforms (non-POSIX extension).
+// Provide a portable fallback: fc00::/7 means first byte is 0xFC or 0xFD.
+#ifndef IN6_IS_ADDR_UNIQUE_LOCAL
+#define IN6_IS_ADDR_UNIQUE_LOCAL(a) \
+    ((((const uint8_t *)(a))[0] & 0xFE) == 0xFC)
+#endif
+
+// CURLU_NON_SUPPORT_SCHEME was added in libcurl 7.78.0.
+// Fall back to 0 (no special flags) if not available.
+#ifndef CURLU_NON_SUPPORT_SCHEME
+#define CURLU_NON_SUPPORT_SCHEME 0
+#endif
 
 #ifdef USE_DRM_SCREENCAPTURE
 #include "Implementation/drm/drmsc.h"
@@ -183,7 +200,9 @@ namespace WPEFramework
 
             // Interpret boolean value case-insensitively
             std::string enableNorm = enableStr.value;
-            std::transform(enableNorm.begin(), enableNorm.end(), enableNorm.begin(), ::tolower);
+            for (char& c : enableNorm) {
+                c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+            }
             bool isEnabled = (enableNorm == "true");
 
             if (!isEnabled)
@@ -211,6 +230,14 @@ namespace WPEFramework
                 return Core::ERROR_GENERAL;
             }
 
+            // Validate URL before accepting it
+            if (!isValidUploadUrl(url))
+            {
+                LOGERR("RFC URL validation failed for '%s'", kUrlKey);
+                result.success = false;
+                return Core::ERROR_GENERAL;
+            }
+
             this->url = std::move(url);
             this->callGUID = callGUID;
                         
@@ -218,6 +245,290 @@ namespace WPEFramework
 
             result.success = true;
             return Core::ERROR_NONE;
+        }
+
+        /* static */ bool ScreenCaptureImplementation::validateUrlSafety(const std::string &url)
+        {
+            if (url.empty())
+            {
+                return false;
+            }
+
+            // Use libcurl's URL parser for robust validation
+            CURLU *h = curl_url();
+            if (!h)
+            {
+                LOGERR("Failed to create CURL URL handle");
+                return false;
+            }
+
+            CURLUcode rc = curl_url_set(h, CURLUPART_URL, url.c_str(), CURLU_NON_SUPPORT_SCHEME);
+            if (rc != CURLUE_OK)
+            {
+                // curl_url_strerror() requires libcurl >= 7.80.0
+#if CURL_AT_LEAST_VERSION(7, 80, 0)
+                LOGERR("Invalid URL format: %s", curl_url_strerror(rc));
+#else
+                LOGERR("Invalid URL format (error code %d)", static_cast<int>(rc));
+#endif
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            // Extract and validate scheme
+            char *scheme = nullptr;
+            rc = curl_url_get(h, CURLUPART_SCHEME, &scheme, 0);
+            if (rc != CURLUE_OK || !scheme)
+            {
+                LOGERR("Failed to extract URL scheme");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            std::string schemeStr(scheme);
+            curl_free(scheme);
+
+            // Allow only http and https schemes
+            if (schemeStr != "http" && schemeStr != "https")
+            {
+                LOGERR("Invalid URL scheme: only http and https are allowed");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            // Reject userinfo (username:password@host) to prevent bypasses
+            char *user = nullptr;
+            char *password = nullptr;
+            rc = curl_url_get(h, CURLUPART_USER, &user, 0);
+            bool hasUser = (rc == CURLUE_OK && user);
+            if (hasUser)
+            {
+                curl_free(user);
+            }
+
+            rc = curl_url_get(h, CURLUPART_PASSWORD, &password, 0);
+            bool hasPassword = (rc == CURLUE_OK && password);
+            if (hasPassword)
+            {
+                curl_free(password);
+            }
+
+            if (hasUser || hasPassword)
+            {
+                LOGERR("URL contains userinfo: not allowed");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            // Extract hostname for validation
+            char *host = nullptr;
+            rc = curl_url_get(h, CURLUPART_HOST, &host, 0);
+            if (rc != CURLUE_OK || !host)
+            {
+                LOGERR("Failed to extract URL host");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            std::string hostStr(host);
+            curl_free(host);
+
+            // Strip IPv6 brackets: curl_url_get returns "[::1]" for IPv6 hosts
+            if (hostStr.size() >= 2 && hostStr.front() == '[' && hostStr.back() == ']')
+            {
+                hostStr = hostStr.substr(1, hostStr.size() - 2);
+            }
+
+            // Convert to lowercase for comparison
+            for (char& c : hostStr) {
+                c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+            }
+
+            // Reject IPv6 zone identifiers (e.g., fe80::1%25lo)
+            if (hostStr.find('%') != std::string::npos)
+            {
+                LOGERR("URL contains IPv6 zone identifier: not allowed");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            // Reject localhost variants
+            if (hostStr == "localhost" || hostStr == "localhost.")
+            {
+                LOGERR("URL targets localhost: not allowed");
+                curl_url_cleanup(h);
+                return false;
+            }
+
+            // Strip trailing dot from IP literals to prevent bypass
+            if (!hostStr.empty() && hostStr.back() == '.')
+            {
+                hostStr.pop_back();
+            }
+
+            // Parse and validate IP addresses
+            struct in_addr addr;
+            struct in6_addr addr6;
+
+            // Check IPv4
+            if (inet_pton(AF_INET, hostStr.c_str(), &addr) == 1)
+            {
+                uint32_t ip = ntohl(addr.s_addr);
+
+                // Reject unspecified (0.0.0.0/8)
+                if ((ip & 0xFF000000) == 0x00000000)
+                {
+                    LOGERR("URL targets unspecified address: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject loopback (127.0.0.0/8)
+                if ((ip & 0xFF000000) == 0x7F000000)
+                {
+                    LOGERR("URL targets loopback address: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+                if ((ip & 0xFF000000) == 0x0A000000 ||  // 10.0.0.0/8
+                    (ip & 0xFFF00000) == 0xAC100000 ||  // 172.16.0.0/12
+                    (ip & 0xFFFF0000) == 0xC0A80000)    // 192.168.0.0/16
+                {
+                    LOGERR("URL targets private network: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject link-local (169.254.0.0/16)
+                if ((ip & 0xFFFF0000) == 0xA9FE0000)
+                {
+                    LOGERR("URL targets link-local address: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject carrier-grade NAT (100.64.0.0/10)
+                if ((ip & 0xFFC00000) == 0x64400000)
+                {
+                    LOGERR("URL targets carrier-grade NAT: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+            }
+            // Check IPv6
+            else if (inet_pton(AF_INET6, hostStr.c_str(), &addr6) == 1)
+            {
+                // Reject unspecified (::)
+                if (IN6_IS_ADDR_UNSPECIFIED(&addr6))
+                {
+                    LOGERR("URL targets IPv6 unspecified: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject loopback (::1)
+                if (IN6_IS_ADDR_LOOPBACK(&addr6))
+                {
+                    LOGERR("URL targets IPv6 loopback: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject link-local (fe80::/10)
+                if (IN6_IS_ADDR_LINKLOCAL(&addr6))
+                {
+                    LOGERR("URL targets IPv6 link-local: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject unique-local (fc00::/7, fd00::/8)
+                if (IN6_IS_ADDR_UNIQUE_LOCAL(&addr6))
+                {
+                    LOGERR("URL targets IPv6 unique-local: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Reject IPv4-mapped IPv6 (::ffff:0:0/96)
+                if (IN6_IS_ADDR_V4MAPPED(&addr6))
+                {
+                    LOGERR("URL targets IPv4-mapped IPv6: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+            }
+            else
+            {
+                // Hostname path: reject numeric-looking hostnames that aren't canonical IP literals
+                // Reject hostnames that look like alternate IP encodings:
+                //  - Pure decimal: 2130706433 (= 127.0.0.1)
+                //  - Hex: 0x7f000001
+                //  - Octal-style dotted: 0177.0.0.1
+                //  - Mixed dotted-numeric: 127.1 (some resolvers expand this)
+
+                // Check 1: Reject pure decimal (all digits, no dots)
+                bool allDigits = !hostStr.empty();
+                for (char c : hostStr)
+                {
+                    if (!std::isdigit(static_cast<unsigned char>(c)))
+                    {
+                        allDigits = false;
+                        break;
+                    }
+                }
+                if (allDigits)
+                {
+                    LOGERR("URL contains numeric decimal hostname: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Check 2: Reject hex IP (starts with 0x/0X)
+                if (hostStr.size() > 2 && hostStr[0] == '0' && (hostStr[1] == 'x' || hostStr[1] == 'X'))
+                {
+                    LOGERR("URL contains hex IP hostname: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+
+                // Check 3: Reject dotted-numeric (only digits and dots, e.g. 0177.0.0.1 or 127.1)
+                bool dottedNumeric = !hostStr.empty();
+                for (char c : hostStr)
+                {
+                    if (!std::isdigit(static_cast<unsigned char>(c)) && c != '.')
+                    {
+                        dottedNumeric = false;
+                        break;
+                    }
+                }
+                if (dottedNumeric)
+                {
+                    LOGERR("URL contains dotted-numeric hostname: not allowed");
+                    curl_url_cleanup(h);
+                    return false;
+                }
+            }
+            // For hostnames, we cannot reliably prevent DNS rebinding without resolution
+            // This is a known limitation. The fix prevents direct IP-based SSRF.
+
+            curl_url_cleanup(h);
+            return true;
+        }
+
+        bool ScreenCaptureImplementation::isValidUploadUrl(const std::string &url) const
+        {
+#if defined(RDK_SERVICES_L1_TEST) || defined(RDK_SERVICE_L2_TEST)
+            // In unit tests, skip SSRF validation for integration tests
+            // that connect to loopback test servers. The validation logic
+            // itself is tested via validateUrlSafety() directly.
+            (void)url;
+            return !url.empty();
+#else
+            return validateUrlSafety(url);
+#endif
         }
 
         Core::hresult ScreenCaptureImplementation::UploadScreenCapture(const string &url, const string &callGUID, Result &result)
@@ -232,6 +543,15 @@ namespace WPEFramework
                 LOGERR("Upload url is not specified");
                 return Core::ERROR_GENERAL;
             }
+
+            // Validate URL before accepting it
+            if (!isValidUploadUrl(url))
+            {
+                LOGERR("Upload URL validation failed");
+                result.success = false;
+                return Core::ERROR_GENERAL;
+            }
+
             this->url = url;
             
             if (!callGUID.empty())
