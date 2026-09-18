@@ -138,6 +138,7 @@ namespace WPEFramework
             bool doUploadScreenCapture(const std::vector<unsigned char> &png_data, bool got_screenshot);
 
             bool isValidUploadUrl(const std::string &url) const;
+            static bool validateUrlSafety(const std::string &url);
 
             // IConfiguration interface
             uint32_t Configure(PluginHost::IShell *service) override;
