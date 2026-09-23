@@ -28,6 +28,9 @@
 extern "C" {
 #endif
 
+/** Sentinel value indicating no valid plane was selected. */
+#define KMS_INVALID_PLANE_ID 0u
+
 typedef struct _kms_ctx {
 
     drmModeRes *res;
@@ -43,6 +46,7 @@ typedef struct _kms_ctx {
     uint32_t encoder_id;
     uint32_t primary_plane_id;
     uint32_t overlay_plane_id;
+    uint32_t topmost_plane_id;  /**< plane with the highest zpos on the active CRTC */
 
     /* atomic properties */
     uint32_t active_property;
@@ -125,7 +129,7 @@ uint32_t kms_get_properties(int fd, drmModeObjectProperties *props, const char *
 
 /**
  * @brief Get primary and overlay plane.
- *        The plane id will set to -1 if cannot get.
+ *        The plane id will be set to KMS_INVALID_PLANE_ID if cannot get.
  *
  * @param[in] fd    drm file descriptor
  * @param[in] kms   kms context
