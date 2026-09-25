@@ -60,6 +60,12 @@ namespace WPEFramework
 
         class ScreenCaptureImplementation : public Exchange::IScreenCapture, public Exchange::IConfiguration
         {
+            enum HTTPRequestType
+            {
+                HTTP_UPLOAD_REQUEST_POST,
+                HTTP_UPLOAD_REQUEST_PUT
+            };
+
         public:
             // We do not allow this plugin to be copied !!
             ScreenCaptureImplementation();
@@ -130,10 +136,12 @@ namespace WPEFramework
             Core::hresult Register(Exchange::IScreenCapture::INotification *notification) override;
             Core::hresult Unregister(Exchange::IScreenCapture::INotification *notification) override;
 
+            Core::hresult StartScreennCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType);
             Core::hresult SendScreenshot(const string &callGUID, Result &result) override;
+            Core::hresult PutScreenshot(const string &callGUID, Result &result) override;
             Core::hresult UploadScreenCapture(const string &url, const string &callGUID, Result &result) override;
 
-            bool uploadDataToUrl(const std::vector<unsigned char> &data, const char *url, std::string &error_str);
+            bool uploadDataToUrl(const std::vector<unsigned char> &data, const char *url, HTTPRequestType httpRequestType, std::string &error_str);
 
             bool doUploadScreenCapture(const std::vector<unsigned char> &png_data, bool got_screenshot);
 
@@ -153,6 +161,7 @@ namespace WPEFramework
             WPEFramework::Core::TimerType<ScreenShotJob> *screenShotDispatcher;
             std::string url;
             std::string callGUID;
+            HTTPRequestType httpRequestType;
             friend class ScreenShotJob;
 
         public:

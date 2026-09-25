@@ -159,6 +159,16 @@ namespace WPEFramework
 
         Core::hresult ScreenCaptureImplementation::SendScreenshot(const string &callGUID, Result &result)
         {
+            return StartScreennCapture(callGUID, result, HTTP_UPLOAD_REQUEST_POST);
+        }
+
+        Core::hresult ScreenCaptureImplementation::PutScreenshot(const string &callGUID, Result &result)
+        {
+            return StartScreennCapture(callGUID, result, HTTP_UPLOAD_REQUEST_PUT);
+        }
+
+        Core::hresult ScreenCaptureImplementation::StartScreennCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType)
+        {
             static const char* kEnableKey = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.Enable";
             static const char* kUrlKey = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.URL";
 
@@ -213,6 +223,7 @@ namespace WPEFramework
 
             this->url = std::move(url);
             this->callGUID = callGUID;
+            this->httpRequestType = httpRequestType;
                         
             screenShotDispatcher->Schedule(Core::Time::Now().Add(0), ScreenShotJob(this));
 
@@ -505,16 +516,18 @@ namespace WPEFramework
                 std::string error_str;
                 std::string local_url;
                 std::string local_callGUID;
+                HTTPRequestType localHttpRequestType;
 
                 {
                     std::lock_guard<std::mutex> guard(m_callMutex);
                     local_url = url;
                     local_callGUID = callGUID;
+                    localHttpRequestType = httpRequestType;
                 }
 
                 LOGWARN("uploading %u of png data to '%s'", (uint32_t)png_data.size(), local_url.c_str());
 
-                if (uploadDataToUrl(png_data, local_url.c_str(), error_str))
+                if (uploadDataToUrl(png_data, local_url.c_str(), localHttpRequestType, error_str))
                 {
                     JsonObject params;
                     params["status"] = true;
@@ -557,7 +570,7 @@ namespace WPEFramework
             }
         }
 
-        bool ScreenCaptureImplementation::uploadDataToUrl(const std::vector<unsigned char> &data, const char *url, std::string &error_str)
+        bool ScreenCaptureImplementation::uploadDataToUrl(const std::vector<unsigned char> &data, const char *url, HTTPRequestType httpRequestType, std::string &error_str)
         {
             CURL *curl;
             CURLcode res;
@@ -590,6 +603,16 @@ namespace WPEFramework
             {
                 LOGERR("CURLOPT_URL failed URL with error code: %s\n", curl_easy_strerror(res));
             }
+
+            if (httpRequestType == HTTP_UPLOAD_REQUEST_PUT)
+            {
+                res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+                if (res != CURLE_OK)
+                {
+                    LOGERR("Failed to set CURLOPT_CUSTOMREQUEST with error code  %s\n", curl_easy_strerror(res));
+                }
+            }
+
             res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
             if (res != CURLE_OK)
             {
