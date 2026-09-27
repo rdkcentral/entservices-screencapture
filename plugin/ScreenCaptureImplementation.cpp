@@ -518,6 +518,43 @@ namespace WPEFramework
             return true;
         }
 
+        /* static */ bool ScreenCaptureImplementation::validateAllowedUploadUrl(const std::string &url, const std::string &configuredUrl)
+        {
+            if (!validateUrlSafety(url) || !validateUrlSafety(configuredUrl))
+                return false;
+
+            auto getPart = [](const std::string& value, CURLUPart part, std::string& output) {
+                CURLU* handle = curl_url();
+                if (!handle || curl_url_set(handle, CURLUPART_URL, value.c_str(), 0) != CURLUE_OK)
+                {
+                    if (handle)
+                        curl_url_cleanup(handle);
+                    return false;
+                }
+                char* raw = nullptr;
+                const CURLUcode rc = curl_url_get(handle, part, &raw, 0);
+                if (rc == CURLUE_OK && raw)
+                {
+                    output.assign(raw);
+                    curl_free(raw);
+                }
+                curl_url_cleanup(handle);
+                return rc == CURLUE_OK && !output.empty();
+            };
+
+            std::string scheme;
+            std::string host;
+            std::string configuredScheme;
+            std::string configuredHost;
+            if (!getPart(url, CURLUPART_SCHEME, scheme) || !getPart(url, CURLUPART_HOST, host)
+                || !getPart(configuredUrl, CURLUPART_SCHEME, configuredScheme)
+                || !getPart(configuredUrl, CURLUPART_HOST, configuredHost))
+                return false;
+            std::transform(host.begin(), host.end(), host.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(configuredHost.begin(), configuredHost.end(), configuredHost.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return scheme == "https" && configuredScheme == "https" && host == configuredHost;
+        }
+
         bool ScreenCaptureImplementation::isValidUploadUrl(const std::string &url) const
         {
 #if defined(RDK_SERVICES_L1_TEST) || defined(RDK_SERVICE_L2_TEST)
@@ -527,7 +564,10 @@ namespace WPEFramework
             (void)url;
             return !url.empty();
 #else
-            return validateUrlSafety(url);
+            static const char* kUrlKey = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.URL";
+            RFC_ParamData_t configuredUrl = {0};
+            return Utils::getRFCConfig(kUrlKey, configuredUrl)
+                && validateAllowedUploadUrl(url, configuredUrl.value);
 #endif
         }
 

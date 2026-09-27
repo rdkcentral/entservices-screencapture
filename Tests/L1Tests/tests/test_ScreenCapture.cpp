@@ -309,6 +309,16 @@ TEST_F(ScreenCaptureTest, UploadAcceptsValidPublicUrl)
     EXPECT_TRUE(WPEFramework::Plugin::ScreenCaptureImplementation::validateUrlSafety("https://upload.example.com/screenshots"));
 }
 
+TEST_F(ScreenCaptureTest, UploadRequiresConfiguredHttpsHostname)
+{
+    EXPECT_TRUE(WPEFramework::Plugin::ScreenCaptureImplementation::validateAllowedUploadUrl(
+        "https://upload.example.com/screenshots/123", "https://upload.example.com/screenshots"));
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateAllowedUploadUrl(
+        "https://other.example.com/screenshots", "https://upload.example.com/screenshots"));
+    EXPECT_FALSE(WPEFramework::Plugin::ScreenCaptureImplementation::validateAllowedUploadUrl(
+        "http://upload.example.com/screenshots", "https://upload.example.com/screenshots"));
+}
+
 TEST_F(ScreenCaptureDRMTest, SendScreenshot)
 {   
     DRMScreenCapture drmHandle = {0, 1280, 720, 5120, 32};

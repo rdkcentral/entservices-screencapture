@@ -139,6 +139,7 @@ namespace WPEFramework
 
             bool isValidUploadUrl(const std::string &url) const;
             static bool validateUrlSafety(const std::string &url);
+            static bool validateAllowedUploadUrl(const std::string &url, const std::string &configuredUrl);
 
             // IConfiguration interface
             uint32_t Configure(PluginHost::IShell *service) override;
