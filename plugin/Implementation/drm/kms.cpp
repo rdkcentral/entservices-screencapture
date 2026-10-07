@@ -155,6 +155,7 @@ uint32_t kms_get_properties(int fd, drmModeObjectProperties *props, const char *
     return id;
 }
 
+//Selects the topmost PRIMARY/OVERLAY plane attached to the active CRTC.
 void kms_get_plane( int fd, kms_ctx *kms )
 {
     drmModePlane *plane = NULL;
@@ -164,46 +165,77 @@ void kms_get_plane( int fd, kms_ctx *kms )
 
     drmSetClientCap(fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
 
-    kms->primary_plane_id = kms->overlay_plane_id = INT_MAX;
+    kms->primary_plane_id = kms->overlay_plane_id = kms->topmost_plane_id = KMS_INVALID_PLANE_ID;
 
-    planeRes = drmModeGetPlaneResources( fd );
-    if ( planeRes ) {
+    uint32_t active_crtc_id = kms->crtc ? kms->crtc->crtc_id : 0;
+    int64_t best_zpos = INT64_MIN;
+    bool found_topmost = false;
 
-        for( unsigned n= 0; n < planeRes->count_planes; ++n ) {
+    planeRes = drmModeGetPlaneResources(fd);
+    if (!planeRes)
+        return;
 
-            plane = drmModeGetPlane( fd, planeRes->planes[n] );
+    for( unsigned n= 0; n < planeRes->count_planes; ++n ) {
 
-            if ( plane ) {
+        plane = drmModeGetPlane(fd, planeRes->planes[n]);
+        if (!plane)
+            continue;
 
-                props = drmModeObjectGetProperties( fd, planeRes->planes[n], DRM_MODE_OBJECT_PLANE );
-                if ( props ) {
+        bool is_active = active_crtc_id && plane->crtc_id == active_crtc_id && plane->fb_id != 0;
 
-                    for( unsigned int j= 0; j < props->count_props; ++j ) {
-
-                        prop = drmModeGetProperty( fd, props->props[j] );
-                        if ( prop ) {
-
-                            if ( !strcmp( prop->name, "type") ) {
-
-                                if ( ( props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY ) && ( kms->primary_plane_id == INT_MAX ) )
-                                    kms->primary_plane_id = planeRes->planes[n];
-
-                                else if ( ( props->prop_values[j] == DRM_PLANE_TYPE_OVERLAY ) && ( kms->overlay_plane_id == INT_MAX ) )
-                                    kms->overlay_plane_id = planeRes->planes[n];
-                            }
-                        }
-
-                        drmModeFreeProperty( prop );
-                    }
-                }
-
-                drmModeFreeObjectProperties( props );
-            }
-
-            drmModeFreePlane( plane );
+        if (!is_active) {
+            drmModeFreePlane(plane);
+            continue;
         }
 
+        bool type_known = false;
+        uint32_t plane_type = 0;
+        bool has_zpos = false;
+        int64_t zpos = 0;
+
+        props = drmModeObjectGetProperties(fd, planeRes->planes[n], DRM_MODE_OBJECT_PLANE);
+        if (props) {
+
+            for (unsigned int j = 0; j < props->count_props; ++j) {
+
+                prop = drmModeGetProperty(fd, props->props[j]);
+                if (!prop)
+                    continue;
+
+                if (!strcmp(prop->name, "type")) {
+                    plane_type = (uint32_t)props->prop_values[j];
+                    type_known = true;
+                } else if (!strcmp(prop->name, "zpos")) {
+                    zpos = (int64_t)props->prop_values[j];
+                    has_zpos = true;
+                }
+
+                drmModeFreeProperty(prop);
+            }
+
+            drmModeFreeObjectProperties(props);
+        }
+
+        if (type_known) {
+            if (plane_type == DRM_PLANE_TYPE_PRIMARY) {
+                kms->primary_plane_id = planeRes->planes[n];
+            } else if (plane_type == DRM_PLANE_TYPE_OVERLAY) {
+                kms->overlay_plane_id = planeRes->planes[n];
+            }
+        }
+
+        // Exclude CURSOR (and any other non-scene plane type) from topmost-zpos candidacy.
+        bool eligible_for_topmost = type_known &&
+            (plane_type == DRM_PLANE_TYPE_PRIMARY || plane_type == DRM_PLANE_TYPE_OVERLAY);
+
+        if (eligible_for_topmost && has_zpos && (!found_topmost || zpos > best_zpos)) {
+            best_zpos = zpos;
+            kms->topmost_plane_id = planeRes->planes[n];
+            found_topmost = true;
+        }
+
+        drmModeFreePlane(plane);
     }
 
-    drmModeFreePlaneResources( planeRes );
+    drmModeFreePlaneResources(planeRes);
 }
