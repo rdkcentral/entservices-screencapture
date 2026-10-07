@@ -136,7 +136,7 @@ namespace WPEFramework
             Core::hresult Register(Exchange::IScreenCapture::INotification *notification) override;
             Core::hresult Unregister(Exchange::IScreenCapture::INotification *notification) override;
 
-            Core::hresult StartScreennCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType);
+            Core::hresult StartScreenCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType);
             Core::hresult SendScreenshot(const string &callGUID, Result &result) override;
             Core::hresult PutScreenshot(const string &callGUID, Result &result) override;
             Core::hresult UploadScreenCapture(const string &url, const string &callGUID, Result &result) override;

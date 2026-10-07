@@ -159,15 +159,15 @@ namespace WPEFramework
 
         Core::hresult ScreenCaptureImplementation::SendScreenshot(const string &callGUID, Result &result)
         {
-            return StartScreennCapture(callGUID, result, HTTP_UPLOAD_REQUEST_POST);
+            return StartScreenCapture(callGUID, result, HTTP_UPLOAD_REQUEST_POST);
         }
 
         Core::hresult ScreenCaptureImplementation::PutScreenshot(const string &callGUID, Result &result)
         {
-            return StartScreennCapture(callGUID, result, HTTP_UPLOAD_REQUEST_PUT);
+            return StartScreenCapture(callGUID, result, HTTP_UPLOAD_REQUEST_PUT);
         }
 
-        Core::hresult ScreenCaptureImplementation::StartScreennCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType)
+        Core::hresult ScreenCaptureImplementation::StartScreenCapture(const string &callGUID, Result &result, HTTPRequestType httpRequestType)
         {
             static const char* kEnableKey = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.Enable";
             static const char* kUrlKey = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.ScreenCapture.URL";
@@ -244,6 +244,7 @@ namespace WPEFramework
                 return Core::ERROR_GENERAL;
             }
             this->url = url;
+            this->httpRequestType = HTTP_UPLOAD_REQUEST_POST;
             
             if (!callGUID.empty())
             {
