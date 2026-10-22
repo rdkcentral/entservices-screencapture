@@ -29,7 +29,7 @@
 #include <mutex>
 #include <vector>
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace Plugin
     {
@@ -42,7 +42,7 @@ namespace WPEFramework
             ScreenShotJob &operator=(const ScreenShotJob &RHS) = delete;
 
         public:
-            ScreenShotJob(WPEFramework::Plugin::ScreenCaptureImplementation *tpt) : m_screenCapture(tpt) {}
+            ScreenShotJob(Thunder::Plugin::ScreenCaptureImplementation *tpt) : m_screenCapture(tpt) {}
             ScreenShotJob(const ScreenShotJob &copy) : m_screenCapture(copy.m_screenCapture) {}
             ~ScreenShotJob() {}
 
@@ -55,7 +55,7 @@ namespace WPEFramework
             uint64_t Timed(const uint64_t scheduledTime);
 
         private:
-            WPEFramework::Plugin::ScreenCaptureImplementation *m_screenCapture;
+            Thunder::Plugin::ScreenCaptureImplementation *m_screenCapture;
         };
 
         class ScreenCaptureImplementation : public Exchange::IScreenCapture, public Exchange::IConfiguration
@@ -150,7 +150,7 @@ namespace WPEFramework
 
             std::mutex m_callMutex;
 
-            WPEFramework::Core::TimerType<ScreenShotJob> *screenShotDispatcher;
+            Thunder::Core::TimerType<ScreenShotJob> *screenShotDispatcher;
             std::string url;
             std::string callGUID;
             friend class ScreenShotJob;
@@ -161,4 +161,4 @@ namespace WPEFramework
             friend class Job;
         };
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

@@ -36,7 +36,7 @@
 #include "DRMScreenCaptureMock.h"
 #include "ThunderPortability.h"
 
-using namespace WPEFramework;
+using namespace Thunder;
 
 using ::testing::NiceMock;
 

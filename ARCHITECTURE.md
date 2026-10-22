@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ScreenCapture plugin is a WPEFramework-based Thunder plugin that provides screen capture functionality for RDK (Reference Design Kit) systems. It enables applications and services to capture screenshots of the current display output and upload them to remote servers or retrieve them for analysis and debugging purposes.
+The ScreenCapture plugin is a Thunder-based Thunder plugin that provides screen capture functionality for RDK (Reference Design Kit) systems. It enables applications and services to capture screenshots of the current display output and upload them to remote servers or retrieve them for analysis and debugging purposes.
 
 ## System Architecture
 
@@ -10,8 +10,8 @@ The ScreenCapture plugin is a WPEFramework-based Thunder plugin that provides sc
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    WPEFramework/Thunder                    │
-│                      (Plugin Host)                         │
+│                        Thunder                              │
+│                      (Plugin Host)                          │
 └─────────────────┬───────────────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────────────┐
@@ -35,7 +35,7 @@ The ScreenCapture plugin is a WPEFramework-based Thunder plugin that provides sc
 
 #### 1. ScreenCapture Plugin (Main Interface)
 - **File**: `ScreenCapture.cpp`, `ScreenCapture.h`
-- **Role**: Primary plugin interface that integrates with WPEFramework
+- **Role**: Primary plugin interface that integrates with Thunder
 - **Responsibilities**:
   - Plugin lifecycle management (Initialize/Deinitialize)
   - JSON-RPC interface exposure
@@ -71,7 +71,7 @@ The ScreenCapture plugin is a WPEFramework-based Thunder plugin that provides sc
 
 ### Interface Integration
 
-The plugin implements several WPEFramework interfaces:
+The plugin implements several Thunder interfaces:
 - `PluginHost::IPlugin`: Core plugin lifecycle
 - `PluginHost::IDispatcher`: JSON-RPC message dispatching
 - `Exchange::IScreenCapture`: Screen capture specific operations
@@ -85,7 +85,7 @@ The plugin implements several WPEFramework interfaces:
 - **libcurl**: HTTP/HTTPS upload functionality
 
 ### RDK Framework Integration
-- **WPEFramework/Thunder**: Core plugin framework
+- **Thunder**: Core plugin framework
 - **IARMBus** (Optional): Inter-process communication
 - **RFC (Runtime Feature Control)**: Configuration management
 

@@ -14,7 +14,7 @@ The ScreenCapture plugin is a comprehensive screen capture solution designed for
 - **Event-driven Architecture**: Real-time status notifications and completion events
 
 ### Platform Integration
-- **WPEFramework/Thunder Integration**: Native plugin architecture for optimal performance
+- **Thunder Integration**: Native plugin architecture for optimal performance
 - **DRM/KMS Support**: Hardware-accelerated capture on Linux platforms
 - **Platform Abstraction**: Extensible design supporting multiple hardware platforms
 - **Memory Optimized**: Efficient buffer management for handling large frame data

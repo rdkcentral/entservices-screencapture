@@ -39,9 +39,9 @@
 #define SCREENCAPTUREL2TEST_CALLSIGN _T("L2tests.1")
 
 using ::testing::NiceMock;
-using namespace WPEFramework;
+using namespace Thunder;
 using testing::StrictMock;
-using ::WPEFramework::Exchange::IScreenCapture;
+using ::Thunder::Exchange::IScreenCapture;
 
 typedef enum : uint32_t
 {

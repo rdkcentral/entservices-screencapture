@@ -35,7 +35,7 @@
 
 #define VNC_SCREENSHOT_URL "http://127.0.0.1:5800/screenshot.png"
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace Plugin
     {
@@ -48,7 +48,7 @@ namespace WPEFramework
         {
             LOGINFO("Create ScreenCaptureImplementation Instance");
             ScreenCaptureImplementation::_instance = this;
-            screenShotDispatcher = new WPEFramework::Core::TimerType<ScreenShotJob>(64 * 1024, "ScreenCaptureDispatcher");
+            screenShotDispatcher = new Thunder::Core::TimerType<ScreenShotJob>(64 * 1024, "ScreenCaptureDispatcher");
         }
 
         ScreenCaptureImplementation::~ScreenCaptureImplementation()
@@ -640,4 +640,4 @@ namespace WPEFramework
         }
 
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

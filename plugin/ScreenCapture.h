@@ -28,7 +28,7 @@
 #include "tracing/Logging.h"
 #include <mutex>
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace Plugin
     {
@@ -117,4 +117,4 @@ namespace WPEFramework
         };
 
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

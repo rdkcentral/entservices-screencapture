@@ -24,7 +24,7 @@
 #define API_VERSION_NUMBER_MINOR 0
 #define API_VERSION_NUMBER_PATCH 0
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace
     {
@@ -42,7 +42,7 @@ namespace WPEFramework
     namespace Plugin
     {
         /*
-         *Register ScreenCapture module as wpeframework plugin
+         *Register ScreenCapture module as thunder plugin
          **/
         SERVICE_REGISTRATION(ScreenCapture, API_VERSION_NUMBER_MAJOR, API_VERSION_NUMBER_MINOR, API_VERSION_NUMBER_PATCH);
 
@@ -86,7 +86,7 @@ namespace WPEFramework
                 }
                 // Register for notifications
                 _screenCapture->Register(&_screenCaptureNotification);
-                // Invoking Plugin API register to wpeframework
+                // Invoking Plugin API register to thunder
                 Exchange::JScreenCapture::Register(*this, _screenCapture);
             }
             else
@@ -166,4 +166,4 @@ namespace WPEFramework
             }
         }
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder
