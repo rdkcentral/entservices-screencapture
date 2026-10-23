@@ -24,7 +24,7 @@ set(PLUGIN_SCREENCAPTURE_STARTUPORDER "" CACHE STRING "To configure startup orde
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(${NAMESPACE}Plugins REQUIRED)
-find_package(${NAMESPACE}Helpers REQUIRED)
+find_package(${NAMESPACE}Helpers CONFIG REQUIRED)
 find_path (STAGING_INCDIR glib-2.0)
 include_directories(${STAGING_INCDIR}/libdrm)
 
